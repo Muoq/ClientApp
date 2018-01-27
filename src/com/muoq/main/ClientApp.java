@@ -1,6 +1,7 @@
 package com.muoq.main;
 
-import com.sun.security.ntlm.Server;
+import com.muoq.main.util.InputReceiver;
+import com.muoq.main.util.InputScanner;
 
 import javax.net.ssl.*;
 import java.io.*;
@@ -8,51 +9,52 @@ import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.Scanner;
 
-public class ClientApp {
+public class ClientApp implements InputReceiver {
 
     static final int SERVER_PORT = 8080;
-    static final String SERVER_IP = "127.0.0.1";
+    static final String SERVER_IP = "192.168.1.224";
+    static final String CERT_PATH = "/cert/servercert.crt";
+
+    InputScanner inputScanner;
 
     SSLContext sslContext;
     SSLSocket sslSocket;
 
     PrintWriter writer;
 
+    public ClientApp() {
+        inputScanner = new InputScanner();
+        inputScanner.addInputReceiver(this);
+        Thread scannerThread = new Thread(inputScanner);
+        scannerThread.start();
+    }
+
     private void setupNetworking() {
         try {
-//            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-//            X509Certificate cert = (X509Certificate) cf.generateCertificate(new FileInputStream("C:\\Users\\victo\\.keystore\\selfsigned.crt"));
+            InputStream certInputStream = getClass().getResourceAsStream(CERT_PATH);
+
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            X509Certificate cert = (X509Certificate) cf.generateCertificate(certInputStream);
+
+            KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+            ks.load(null);
+            ks.setCertificateEntry("selfsign", cert);
 
             TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-            KeyStore ks = KeyStore.getInstance("PKCS12");
-//            ks.load(null);
-
-            ks.load(new FileInputStream("C:\\Users\\victo\\.keystore\\selfsigned.pks"), "victor1406".toCharArray());
-
-//            ks.setCertificateEntry("selfsigned", cert);
-
             tmf.init(ks);
 
-            KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-            kmf.init(ks, "victor1406".toCharArray());
-
             sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+            sslContext.init(null, tmf.getTrustManagers(), null);
         } catch (KeyStoreException e) {
             e.printStackTrace();
         } catch (CertificateException e) {
             e.printStackTrace();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
             e.printStackTrace();
         } catch (KeyManagementException e) {
             e.printStackTrace();
-        } catch (UnrecoverableKeyException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -75,37 +77,20 @@ public class ClientApp {
         }
     }
 
-    private void setupInput() {
-        Thread inputThread = new Thread(new InputScanner());
-        inputThread.start();
-    }
-
     private void start() {
-        setupInput();
         setupNetworking();
         System.out.println("SSL Setup completed. Connecting to server...");
         connectToServer();
     }
 
     private void handleMessage(String message) {
-
+        System.out.println("Message from server: " + message);
     }
 
-    private void handleInput(String input) {
-        if (writer != null) {
-            writer.println(input);
-
-            System.out.println("Wrote to server: " + input);
-        } else {
-            try {
-                writer = new PrintWriter(sslSocket.getOutputStream());
-
-                writer.println(input);
-            } catch (IOException e) {
-                System.out.println("Could not connect to server.");
-                e.printStackTrace();
-            }
-        }
+    public void receive(String message) {
+        writer.println(message);
+        writer.flush();
+        System.out.println("Wrote to server: " + message);
     }
 
     public static void main(String[] args) {
@@ -126,29 +111,6 @@ public class ClientApp {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }
-
-    }
-
-    class InputScanner implements Runnable {
-
-        public void run() {
-            Scanner scanner = new Scanner(System.in);
-
-            String message;
-
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-            System.out.printf("Input: ");
-            while ((message = scanner.nextLine()) != null) {
-                handleInput(message);
-                System.out.printf("Input: ");
-            }
-
         }
 
     }
