@@ -15,8 +15,8 @@ import java.security.cert.X509Certificate;
 public class ClientApp implements InputReceiver {
 
     static final char NUL = (char) 0;
-    static final int SERVER_PORT = 8080;
-    static final String SERVER_IP = "192.168.1.46";
+    static final int SERVER_PORT = 14000;
+    static final String SERVER_IP = "127.0.0.1";
     static final String CERT_PATH = "/cert/servercert.crt";
 
     InputScanner inputScanner;
@@ -75,7 +75,7 @@ public class ClientApp implements InputReceiver {
 
             Thread serverListenerThread = new Thread(new ServerListener());
             serverListenerThread.start();
-        } catch (ConnectException e) {
+        } catch (SocketException e) {
             System.out.println("Could not connect to server: Server unavailable.");
             System.out.println("Exiting...");
             System.exit(0);
@@ -104,7 +104,7 @@ public class ClientApp implements InputReceiver {
         writer.println(message);
         writer.flush();
 
-        System.out.println("Wrote to server: " + message);
+        System.out.println("Wrote to server: " + message.replace(String.valueOf(NUL), "(NUL)"));
     }
 
     public static void main(String[] args) {
@@ -122,6 +122,11 @@ public class ClientApp implements InputReceiver {
                 while ((message = reader.readLine()) != null) {
                     handleMessage(message);
                 }
+
+                System.out.println("Server disconnected.");
+                System.out.println("Exiting...");
+                System.exit(0);
+
             } catch(SocketException e) {
                 System.out.println("Server disconnected.");
                 System.out.println("Exiting...");
