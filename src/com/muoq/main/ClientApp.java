@@ -5,6 +5,8 @@ import com.muoq.main.util.InputScanner;
 
 import javax.net.ssl.*;
 import java.io.*;
+import java.net.ConnectException;
+import java.net.SocketException;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -12,8 +14,9 @@ import java.security.cert.X509Certificate;
 
 public class ClientApp implements InputReceiver {
 
+    static final char NUL = (char) 0;
     static final int SERVER_PORT = 8080;
-    static final String SERVER_IP = "192.168.1.224";
+    static final String SERVER_IP = "192.168.1.46";
     static final String CERT_PATH = "/cert/servercert.crt";
 
     InputScanner inputScanner;
@@ -72,6 +75,10 @@ public class ClientApp implements InputReceiver {
 
             Thread serverListenerThread = new Thread(new ServerListener());
             serverListenerThread.start();
+        } catch (ConnectException e) {
+            System.out.println("Could not connect to server: Server unavailable.");
+            System.out.println("Exiting...");
+            System.exit(0);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -88,8 +95,15 @@ public class ClientApp implements InputReceiver {
     }
 
     public void receive(String message) {
+        String[] messageComponents = message.split(" ", 2);
+        try {
+            message = "VIPC" + NUL + messageComponents[0] + NUL + messageComponents[1] + NUL + NUL;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            message = "VIPC" + NUL + messageComponents[0] + NUL + NUL + NUL;
+        }
         writer.println(message);
         writer.flush();
+
         System.out.println("Wrote to server: " + message);
     }
 
@@ -108,6 +122,10 @@ public class ClientApp implements InputReceiver {
                 while ((message = reader.readLine()) != null) {
                     handleMessage(message);
                 }
+            } catch(SocketException e) {
+                System.out.println("Server disconnected.");
+                System.out.println("Exiting...");
+                System.exit(0);
             } catch (IOException e) {
                 e.printStackTrace();
             }
