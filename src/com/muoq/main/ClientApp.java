@@ -26,6 +26,8 @@ public class ClientApp implements InputReceiver {
 
     PrintWriter writer;
 
+    boolean doOnce = false;
+
     public ClientApp() {
         inputScanner = new InputScanner();
         inputScanner.addInputReceiver(this);
@@ -100,6 +102,13 @@ public class ClientApp implements InputReceiver {
             message = "VIPC" + NUL + messageComponents[0] + NUL + messageComponents[1] + NUL + NUL;
         } catch (ArrayIndexOutOfBoundsException e) {
             message = "VIPC" + NUL + messageComponents[0] + NUL + NUL + NUL;
+        }
+
+        if (!doOnce) {
+            message = "LCH:" + message;
+            doOnce = true;
+        } else {
+            message = "SND:" + message;
         }
         writer.println(message);
         writer.flush();
